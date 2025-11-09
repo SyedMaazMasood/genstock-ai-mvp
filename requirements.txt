@@ -1,8 +1,8 @@
 streamlit==1.38.0
-langchain==0.3.2
+langchain==0.3.4
 langchain-openai==0.2.2
-langchain-groq==0.1.9
-crewai==0.51.1
+langchain-groq==0.2.0
+crewai==0.76.2
 easyocr==1.7.1
 reportlab==4.2.2
 pillow==10.4.0

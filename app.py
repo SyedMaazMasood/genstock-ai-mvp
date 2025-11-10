@@ -38,16 +38,18 @@ if "messages" not in st.session_state:
 uploaded_file = st.file_uploader("Upload your sales data (CSV)", type="csv")
 
 if uploaded_file:
-    # --- THIS IS THE FIX ---
-    # 1. Read the CSV into the 'df' variable *first*.
-    df = pd.read_csv(uploaded_file)
-
-    # 2. NOW you can check the session state and safely use 'df'.
-    if st.session_state.agent_executor is None:
-        st.session_state.df = df  # <-- This line will now work
+    # We ONLY read the file and create the agent if it's not already in memory
+    if st.session_state.df is None: 
+        
+        # 1. Read the file ONCE
+        df = pd.read_csv(uploaded_file) 
+        
+        # 2. Store it in session state immediately
+        st.session_state.df = df 
         st.success("File uploaded successfully!")
         st.dataframe(df.head())
         
+        # 3. Now, create the agent and summary, storing them in session state
         with st.spinner("GenAI Agent is analyzing the data..."):
             st.session_state.agent_executor = create_pandas_dataframe_agent(
                 llm,
@@ -57,7 +59,6 @@ if uploaded_file:
                 allow_dangerous_code=True
             )
         
-        # --- NEW: PROACTIVE SUMMARY ---
         with st.spinner("AI is generating your executive summary..."):
             try:
                 summary_prompt = """
@@ -71,28 +72,6 @@ if uploaded_file:
                 st.session_state.summary = response["output"]
             except Exception as e:
                 st.error(f"Error generating summary: {e}")
-
-    # Read the CSV file into a pandas DataFrame
-    df = pd.read_csv(uploaded_file)
-    
-    # Store the DataFrame in session state if it's not already there
-    if st.session_state.df is None:
-        st.session_state.df = df
-        st.success("File uploaded successfully! You can now ask questions about your data.")
-        
-        # Display the first 5 rows of the data
-        st.dataframe(df.head())
-        
-        # --- Create the Pandas Agent ---
-        # We create the agent *once* and store it in session state
-        with st.spinner("GenAI Agent is analyzing the data..."):
-            st.session_state.agent_executor = create_pandas_dataframe_agent(
-                llm,
-                df,
-                agent_type="openai-tools",
-                verbose=True, # Set to True to see the agent's "thinking" in your terminal
-                allow_dangerous_code=True
-            )
 
 # --- Main Interface ---
 tab1, tab2 = st.tabs(["📈 Proactive Dashboard", "💬 Chat with Data"])

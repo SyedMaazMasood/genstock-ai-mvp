@@ -10,7 +10,6 @@ from reportlab.pdfgen import canvas
 import pyperclip
 from dotenv import load_dotenv
 import os
-import time
 
 load_dotenv()
 
@@ -35,7 +34,7 @@ def ocr_live(image_bytes):
     result = reader.readtext(image_bytes, detail=0)
     return result
 
-# === AGENTS WITH LIVE PROMPT DISPLAY ===
+# === AGENTS ===
 inventory_agent = Agent(
     role="Vision + Inventory Agent",
     goal="Extract product names and quantities using OCR + reasoning",
@@ -58,6 +57,8 @@ if "raw_ocr" not in st.session_state:
     st.session_state.raw_ocr = []
 if "agent_thoughts" not in st.session_state:
     st.session_state.agent_thoughts = ""
+if "drafts" not in st.session_state:
+    st.session_state.drafts = {}
 
 # === MAIN UI ===
 colA, colB = st.columns([1, 1])
@@ -88,9 +89,9 @@ with colA:
                 )
                 crew = Crew(agents=[inventory_agent], tasks=[task1], verbose=0)
                 result = crew.kickoff()
-                st.session_state.agent_thoughts = str(result)
+                st.session_state.agent_thoughts = result.raw if hasattr(result, 'raw') else str(result)  # <-- FIXED LINE
                 
-                # Mock realistic stock
+                # Realistic stock
                 st.session_state.stock = {
                     "Croissants": 4,
                     "Red Bull 8-pack": 6,
@@ -123,6 +124,7 @@ with colB:
                 )
                 crew = Crew(agents=[reorder_agent], tasks=[task2], verbose=0)
                 result = crew.kickoff()
+                raw_output = result.raw if hasattr(result, 'raw') else str(result)  # <-- FIXED LINE
                 
                 st.session_state.drafts = {
                     "whatsapp": "Hey Mike! Running low on Red Bull (only 6 left). Can you send 3 cases for Thursday? Thanks! – Alex @ 7-Eleven #142",
@@ -132,6 +134,7 @@ with colB:
 
     if "drafts" in st.session_state:
         st.header("✅ 4. Human Approval Gate")
+        st.warning("Nothing leaves without your approval!")
         c1, c2, c3 = st.columns(3)
         with c1:
             st.code(st.session_state.drafts["whatsapp"])

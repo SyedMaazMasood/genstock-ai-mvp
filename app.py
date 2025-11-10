@@ -132,7 +132,7 @@ with colB:
                     "pdf": "URGENT REORDER\nRed Bull 8-pack × 36 units\nDelivery: Nov 21\nStore: 7-Eleven #142"
                 }
 
-    if "drafts" in st.session_state:
+    if st.session_state.drafts:
         st.header("✅ 4. Human Approval Gate")
         st.warning("Nothing leaves without your approval!")
         c1, c2, c3 = st.columns(3)

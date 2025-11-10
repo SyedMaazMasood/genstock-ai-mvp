@@ -2,7 +2,7 @@ import streamlit as st
 from crewai import Agent, Task, Crew
 from langchain_openai import ChatOpenAI
 from langchain_groq import ChatGroq
-from langchain_community.tools import tool
+from crewai_tools import tool
 from PIL import Image
 import easyocr
 import io

@@ -15,7 +15,7 @@ st.title("GenStock AI 📈 CSV Analyst")
 
 # --- LLM Setup ---
 # Use a fast and powerful model for the agent
-llm = ChatGroq(model="llama3-70b-8192", temperature=0, api_key=groq_api_key)
+llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0, api_key=groq_api_key)
 
 st.info("Welcome! Upload your sales CSV file below to get started.")
 

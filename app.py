@@ -51,6 +51,7 @@ if uploaded_file:
                 df,
                 agent_type="openai-tools",
                 verbose=True # Set to True to see the agent's "thinking" in your terminal
+                allow_dangerous_code=True
             )
 
 # --- Display Chat History ---

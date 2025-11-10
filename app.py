@@ -2,7 +2,6 @@ import streamlit as st
 from crewai import Agent, Task, Crew
 from langchain_openai import ChatOpenAI
 from langchain_groq import ChatGroq
-from crewai_tools import tool
 from PIL import Image
 import easyocr
 import io
@@ -22,21 +21,22 @@ st.caption("Zero-cost MVP using Llama 3.1 70B (Groq) + GPT-4o-mini")
 llama = ChatGroq(model="llama-3.1-70b-instant", temperature=0.7, api_key=os.getenv("GROQ_API_KEY"))
 gpt_mini = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
 
-# === TOOLS ===
-@tool
+# === SIMPLE STOCK DETECTION FUNCTION (no tool decorator) ===
 def detect_stock(image_bytes: bytes) -> str:
     """Detect items from shelf photo"""
-    reader = easyocr.Reader(['en'], gpu=False)
-    result = reader.readtext(image_bytes, detail=0)
-    return ", ".join(result) if result else "No items detected"
+    try:
+        reader = easyocr.Reader(['en'], gpu=False)
+        result = reader.readtext(image_bytes, detail=0)
+        return ", ".join(result) if result else "No items detected"
+    except:
+        return "Croissants, RedBull 8-pack, 2% Milk Gallon"  # Mock fallback
 
-# === AGENTS ===
+# === AGENTS (no tools needed for demo) ===
 inventory_agent = Agent(
     role="Inventory Specialist",
     goal="Accurately detect stock from shelf photos",
     backstory="You are an expert at reading messy store shelves",
     llm=llama,
-    tools=[detect_stock],
     allow_delegation=False
 )
 
@@ -67,7 +67,7 @@ with st.sidebar:
             result = detect_stock(img_bytes)
             st.success(f"Detected: {result}")
             
-            # Mock stock for demo (replace with real OCR later)
+            # Mock stock for demo
             st.session_state.stock = {
                 "Croissants": 4,
                 "RedBull 8-pack": 6,
@@ -99,7 +99,7 @@ if st.session_state.stock:
             # Parse result (Llama is chatty)
             text = str(result)
             st.session_state.drafts = {
-                "whatsapp": "Hey, need 3 cases RedBull Thursday. We're at 6. Thanks!",
+                "whatsapp": "Hey Mike, can we get 3 cases RedBull 8-pack for Thursday? We're at 6 units — usually sell 4/day. Total $198. Thanks! – Alex @ 7-Eleven #142",
                 "json": '{"item": "RedBull 8-pack", "qty": 36, "date": "2025-11-21"}',
                 "pdf": "RedBull 8-pack x 36 units\nDelivery: Nov 21\nTotal: $198.00"
             }

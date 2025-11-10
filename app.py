@@ -3,7 +3,7 @@ import pandas as pd
 from langchain_groq import ChatGroq
 from langchain_experimental.agents.agent_toolkits import create_pandas_dataframe_agent
 from langchain_core.prompts import PromptTemplate
-from langchain.chains.llm import LLMChain
+from langchain_core.output_parsers import StrOutputParser
 from dotenv import load_dotenv
 import os
 
@@ -148,9 +148,9 @@ with tab1:
                     slowest_item = item_response["output"]
                     
                     st.markdown(f"**Analysis:** The slowest item is: `{slowest_item}`")
-                    
-                    # 2. Define a "Promo Agent" (LLMChain) to GENERATE content
-                    promo_template = """
+
+                    # 2. Define the "Promo Agent" components (NEW LCEL WAY)
+                    promo_template_str = """
                     You are a creative marketing assistant for a small convenience store.
                     Your goal is to reduce waste and sell slow-moving inventory.
                     
@@ -163,13 +163,16 @@ with tab1:
                     3. A suggested discount (e.g., 25% off, Buy One Get One Free).
                     """
                     
-                    promo_prompt = PromptTemplate(template=promo_template, input_variables=["item"])
-                    promo_chain = LLMChain(llm=llm, prompt=promo_prompt)
+                    promo_prompt = PromptTemplate(template=promo_template_str, input_variables=["item"])
+                    output_parser = StrOutputParser()
+                    
+                    # 3. Define the chain using the | (pipe) operator
+                    promo_chain = promo_prompt | llm | output_parser
                     
                     with st.spinner(f"AI is generating a promotion for {slowest_item}..."):
-                        # 3. Run the Promo Agent
+                        # 4. Run the chain
                         promo_response = promo_chain.invoke({"item": slowest_item})
-                        st.session_state.promo = promo_response["text"]
+                        st.session_state.promo = promo_response # The result is now a simple string
                         
                 except Exception as e:
                     st.error(f"Error generating promotion: {e}")

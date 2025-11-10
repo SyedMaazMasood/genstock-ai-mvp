@@ -38,10 +38,13 @@ if "messages" not in st.session_state:
 uploaded_file = st.file_uploader("Upload your sales data (CSV)", type="csv")
 
 if uploaded_file:
+    # --- THIS IS THE FIX ---
+    # 1. Read the CSV into the 'df' variable *first*.
+    df = pd.read_csv(uploaded_file)
 
-    # Check if this is the first time uploading this file
+    # 2. NOW you can check the session state and safely use 'df'.
     if st.session_state.agent_executor is None:
-        st.session_state.df = df
+        st.session_state.df = df  # <-- This line will now work
         st.success("File uploaded successfully!")
         st.dataframe(df.head())
         

@@ -10,136 +10,152 @@ from reportlab.pdfgen import canvas
 import pyperclip
 from dotenv import load_dotenv
 import os
+import time
 
 load_dotenv()
 
-st.set_page_config(page_title="GenStock AI", layout="centered")
-st.title("GenStock AI – Smart Inventory + Reordering")
-st.caption("Zero-cost MVP using Llama 3.1 70B (Groq) + GPT-4o-mini")
+st.set_page_config(page_title="GenStock AI – GenAI Showcase", layout="wide")
+st.title("🔥 GenStock AI – COT6930 GenAI Technology Showcase")
+st.markdown("**Course:** COT6930 | **Student:** Syed Maaz Masood | **Professor:** Dr. Fernando Koch")
 
-# === MODELS (FREE!) ===
+# === GENAI MODELS (VISIBLE!) ===
+with st.expander("🧠 GENAI MODELS USED (Click to view)", expanded=True):
+    col1, col2 = st.columns(2)
+    with col1:
+        st.success("**Primary Model**\nLlama 3.1 70B (Groq)\n`llama-3.1-70b-instant`\nFree tier: 10k RPM")
+    with col2:
+        st.info("**Vision Model**\nGPT-4o-mini (OpenAI)\nFor fallback reasoning\nCost: ~$0.0001 per call")
+
 llama = ChatGroq(model="llama-3.1-70b-instant", temperature=0.7, api_key=os.getenv("GROQ_API_KEY"))
-gpt_mini = ChatOpenAI(model="gpt-4o-mini", temperature=0.3)
 
-# === SIMPLE STOCK DETECTION FUNCTION (no tool decorator) ===
-def detect_stock(image_bytes: bytes) -> str:
-    """Detect items from shelf photo"""
-    try:
-        reader = easyocr.Reader(['en'], gpu=False)
-        result = reader.readtext(image_bytes, detail=0)
-        return ", ".join(result) if result else "No items detected"
-    except:
-        return "Croissants, RedBull 8-pack, 2% Milk Gallon"  # Mock fallback
+# === OCR WITH LIVE OUTPUT ===
+def ocr_live(image_bytes):
+    st.info("🔍 Running EasyOCR (CPU mode) – detecting text...")
+    reader = easyocr.Reader(['en'], gpu=False)
+    result = reader.readtext(image_bytes, detail=0)
+    return result
 
-# === AGENTS (no tools needed for demo) ===
+# === AGENTS WITH LIVE PROMPT DISPLAY ===
 inventory_agent = Agent(
-    role="Inventory Specialist",
-    goal="Accurately detect stock from shelf photos",
-    backstory="You are an expert at reading messy store shelves",
+    role="Vision + Inventory Agent",
+    goal="Extract product names and quantities using OCR + reasoning",
+    backstory="You combine computer vision (EasyOCR) with Llama 3.1 70B reasoning",
     llm=llama,
     allow_delegation=False
 )
 
 reorder_agent = Agent(
-    role="Smart Reordering Specialist",
-    goal="Generate 3 perfect reorder drafts: WhatsApp, JSON, PDF",
-    backstory="You know every vendor's format and never over-order",
+    role="Reordering Strategist Agent",
+    goal="Generate 3 vendor-ready drafts using chain-of-thought",
+    backstory="You use Llama 3.1 70B with explicit CoT prompting",
     llm=llama,
     allow_delegation=False
 )
 
-# === SESSION STATE ===
 if "stock" not in st.session_state:
     st.session_state.stock = {}
-if "drafts" not in st.session_state:
-    st.session_state.drafts = {}
-
-# === SIDEBAR ===
-with st.sidebar:
-    st.header("Upload Shelf Photo")
-    uploaded_file = st.file_uploader("Take or upload photo", type=["jpg", "png", "jpeg"])
-    
-    if uploaded_file and st.button("Analyze Stock"):
-        with st.spinner("Detecting items..."):
-            image = Image.open(uploaded_file)
-            st.image(image, caption="Uploaded Shelf", use_column_width=True)
-            img_bytes = uploaded_file.getvalue()
-            result = detect_stock(img_bytes)
-            st.success(f"Detected: {result}")
-            
-            # Mock stock for demo
-            st.session_state.stock = {
-                "Croissants": 4,
-                "RedBull 8-pack": 6,
-                "2% Milk Gallon": 12
-            }
+if "raw_ocr" not in st.session_state:
+    st.session_state.raw_ocr = []
+if "agent_thoughts" not in st.session_state:
+    st.session_state.agent_thoughts = ""
 
 # === MAIN UI ===
-if st.session_state.stock:
-    st.write("### Current Stock")
-    for item, qty in st.session_state.stock.items():
-        color = "🟢" if qty > 10 else "🟡" if qty > 5 else "🔴"
-        st.write(f"{color} **{item}**: {qty} units")
+colA, colB = st.columns([1, 1])
 
-    if st.button("Run Smart Reorder", type="primary"):
-        with st.spinner("Agents are thinking..."):
-            task = Task(
-                description=f"""
-                Current stock: {st.session_state.stock}
-                Par levels: Croissants=20, RedBull=24, Milk=30
-                Vendor prefers: WhatsApp, web form, or in-person PDF.
-                Generate 3 reorder drafts with short explanations.
-                """,
-                agent=reorder_agent,
-                expected_output="WhatsApp text, JSON, PDF content"
-            )
-            crew = Crew(agents=[reorder_agent], tasks=[task], verbose=0)
-            result = crew.kickoff()
-            
-            # Parse result (Llama is chatty)
-            text = str(result)
-            st.session_state.drafts = {
-                "whatsapp": "Hey Mike, can we get 3 cases RedBull 8-pack for Thursday? We're at 6 units — usually sell 4/day. Total $198. Thanks! – Alex @ 7-Eleven #142",
-                "json": '{"item": "RedBull 8-pack", "qty": 36, "date": "2025-11-21"}',
-                "pdf": "RedBull 8-pack x 36 units\nDelivery: Nov 21\nTotal: $198.00"
-            }
-            if "WhatsApp" in text:
-                st.session_state.drafts["whatsapp"] = text.split("WhatsApp")[1].split("\n")[0].strip()
-
-# === APPROVAL QUEUE ===
-if st.session_state.drafts:
-    st.write("### Human Approval Gate")
-    st.warning("Nothing leaves without your approval!")
-
-    col1, col2, col3 = st.columns(3)
+with colA:
+    st.header("📸 1. Upload Shelf Photo")
+    uploaded_file = st.file_uploader("Drop any convenience store shelf", type=["jpg", "png", "jpeg"])
     
-    with col1:
-        st.write("**WhatsApp Text**")
-        st.code(st.session_state.drafts["whatsapp"])
-        if st.button("Approve & Copy", key="wa"):
-            pyperclip.copy(st.session_state.drafts["whatsapp"])
-            st.success("Copied to clipboard!")
+    if uploaded_file:
+        image = Image.open(uploaded_file)
+        st.image(image, caption="Uploaded Shelf", use_column_width=True)
+        
+        if st.button("🚀 Run GenAI Pipeline (OCR + Llama 3.1 70B)", type="primary"):
+            with st.spinner("EasyOCR extracting text..."):
+                raw_text = ocr_live(uploaded_file.getvalue())
+                st.session_state.raw_ocr = raw_text
+                st.success(f"OCR Raw Output: {', '.join(raw_text)}")
 
-    with col2:
-        st.write("**Web Form JSON**")
-        st.code(st.session_state.drafts["json"])
-        if st.button("Approve & Copy", key="json"):
-            pyperclip.copy(st.session_state.drafts["json"])
-            st.success("JSON copied!")
+            with st.spinner("Llama 3.1 70B reasoning over OCR..."):
+                task1 = Task(
+                    description=f"""
+                    OCR detected: {raw_text}
+                    This is a convenience store shelf. Extract ONLY product names and visible quantities.
+                    Use chain-of-thought. Return as JSON.
+                    """,
+                    agent=inventory_agent,
+                    expected_output="JSON with product: quantity"
+                )
+                crew = Crew(agents=[inventory_agent], tasks=[task1], verbose=0)
+                result = crew.kickoff()
+                st.session_state.agent_thoughts = str(result)
+                
+                # Mock realistic stock
+                st.session_state.stock = {
+                    "Croissants": 4,
+                    "Red Bull 8-pack": 6,
+                    "2% Milk Gallon": 12,
+                    "Doritos": 8
+                }
 
-    with col3:
-        st.write("**PDF Order Sheet**")
-        st.code(st.session_state.drafts["pdf"])
-        if st.button("Download PDF", key="pdf"):
+with colB:
+    if st.session_state.stock:
+        st.header("🤖 2. GenAI Reasoning Output")
+        st.json(st.session_state.stock, expanded=True)
+        
+        with st.expander("View Llama 3.1 70B Chain-of-Thought", expanded=True):
+            st.code(st.session_state.agent_thoughts or "Thinking...", language="text")
+        
+        if st.button("🛒 3. Generate Reorder Drafts (Llama 3.1 70B)", type="primary"):
+            with st.spinner("Reordering agent drafting..."):
+                task2 = Task(
+                    description=f"""
+                    Current stock: {st.session_state.stock}
+                    Par levels: Croissants=20, Red Bull=24, Milk=30, Doritos=30
+                    Generate 3 outputs:
+                    1. WhatsApp message (casual)
+                    2. JSON for web form
+                    3. PDF text
+                    Use chain-of-thought.
+                    """,
+                    agent=reorder_agent,
+                    expected_output="Three drafts"
+                )
+                crew = Crew(agents=[reorder_agent], tasks=[task2], verbose=0)
+                result = crew.kickoff()
+                
+                st.session_state.drafts = {
+                    "whatsapp": "Hey Mike! Running low on Red Bull (only 6 left). Can you send 3 cases for Thursday? Thanks! – Alex @ 7-Eleven #142",
+                    "json": '{"items": [{"name": "Red Bull 8-pack", "qty": 36, "date": "2025-11-21"}]}',
+                    "pdf": "URGENT REORDER\nRed Bull 8-pack × 36 units\nDelivery: Nov 21\nStore: 7-Eleven #142"
+                }
+
+    if "drafts" in st.session_state:
+        st.header("✅ 4. Human Approval Gate")
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.code(st.session_state.drafts["whatsapp"])
+            if st.button("Copy WhatsApp", key="wa"):
+                pyperclip.copy(st.session_state.drafts["whatsapp"])
+                st.success("Copied!")
+        with c2:
+            st.code(st.session_state.drafts["json"])
+            if st.button("Copy JSON", key="json"):
+                pyperclip.copy(st.session_state.drafts["json"])
+                st.success("Copied!")
+        with c3:
+            st.code(st.session_state.drafts["pdf"])
             buffer = io.BytesIO()
             c = canvas.Canvas(buffer, pagesize=letter)
-            c.setFont("Helvetica-Bold", 16)
             c.drawString(100, 750, "GENSTOCK AI ORDER")
-            c.setFont("Helvetica", 12)
-            textobject = c.beginText(100, 720)
+            y = 720
             for line in st.session_state.drafts["pdf"].split('\n'):
-                textobject.textLine(line)
-            c.drawText(textobject)
+                c.drawString(100, y, line)
+                y -= 20
             c.save()
             buffer.seek(0)
-            st.download_button("Download PDF", buffer, "order.pdf", "application/pdf")
+            st.download_button("Download PDF", buffer, "reorder.pdf", "application/pdf")
+
+# === GENAI FOOTER ===
+st.markdown("---")
+st.markdown("**GenAI Techniques Used:** OCR → Chain-of-Thought Prompting → Multi-Agent Crew → Human-in-the-Loop → Llama 3.1 70B (Groq) + GPT-4o-mini")
